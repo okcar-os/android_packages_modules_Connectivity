@@ -461,12 +461,13 @@ public class NsdService extends INsdManager.Stub {
                         final String type = info.registrationType;
                         servInfo = new NsdServiceInfo(name, type);
                         final int foundNetId = info.netId;
-                        if (foundNetId == 0L) {
-                            // Ignore services that do not have a Network: they are not usable
-                            // by apps, as they would need privileged permissions to use
-                            // interfaces that do not have an associated Network.
-                            break;
-                        }
+                        // if (foundNetId == 0L) {
+                        //     // Ignore services that do not have a Network: they are not usable
+                        //     // by apps, as they would need privileged permissions to use
+                        //     // interfaces that do not have an associated Network.
+                        //     break;
+                        // }
+
                         setServiceNetworkForCallback(servInfo, info.netId, info.interfaceIdx);
                         clientInfo.onServiceFound(clientId, servInfo);
                         break;
@@ -528,8 +529,14 @@ public class NsdService extends INsdManager.Stub {
                         stopResolveService(id);
                         removeRequestMap(clientId, id, clientInfo);
 
+                        String useHostName = info.hostname;
+                        // MDnsSdListener.cpp will use this info to determine if it is an airplay
+                        if (type != null && type.contains("_airplay._tcp")) {
+                            useHostName = info.hostname + "__airplay__tcp";
+                        }
+
                         final int id2 = getUniqueId();
-                        if (getAddrInfo(id2, info.hostname, info.interfaceIdx)) {
+                        if (getAddrInfo(id2, useHostName, info.interfaceIdx)) {
                             storeRequestMap(clientId, id2, clientInfo, NsdManager.RESOLVE_SERVICE);
                         } else {
                             clientInfo.onResolveServiceFailed(
@@ -569,7 +576,9 @@ public class NsdService extends INsdManager.Stub {
                         // If the resolved service is on an interface without a network, consider it
                         // as a failure: it would not be usable by apps as they would need
                         // privileged permissions.
-                        if (netId != NETID_UNSET && serviceHost != null) {
+
+                        // if (netId != NETID_UNSET && serviceHost != null) {
+                        if (serviceHost != null) {
                             clientInfo.mResolvedService.setHost(serviceHost);
                             setServiceNetworkForCallback(clientInfo.mResolvedService,
                                     netId, info.interfaceIdx);
@@ -596,6 +605,7 @@ public class NsdService extends INsdManager.Stub {
         switch (netId) {
             case NETID_UNSET:
                 info.setNetwork(null);
+                info.setInterfaceIndex(ifaceIdx);
                 break;
             case INetd.LOCAL_NET_ID:
                 // Special case for LOCAL_NET_ID: Networks on netId 99 are not generally
